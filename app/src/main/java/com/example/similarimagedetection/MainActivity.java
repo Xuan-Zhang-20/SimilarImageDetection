@@ -11,10 +11,16 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -53,11 +59,11 @@ public class MainActivity extends AppCompatActivity {
         Log.d("TAG", msg);
 
         for (int i = 0; i < picPaths.size(); ++i) {
-            int[] source = getPicThumb(picPaths.get(i));
+            int[] source = getPicCode(picPaths.get(i));
             List<String> similarList = new ArrayList<>();
             similarList.add(picPaths.get(i));
             for (int j = i + 1; j < picPaths.size(); ++j) {
-                int[] cmp = getPicThumb(picPaths.get(j));
+                int[] cmp = getPicCode(picPaths.get(j));
                 if (comparePicture(source, cmp)) {
                     similarList.add(picPaths.get(j));
                     picPaths.remove(j);
@@ -66,12 +72,38 @@ public class MainActivity extends AppCompatActivity {
             if (similarList.size() > 1)
                 similarPics.add(similarList);
         }
-        for(int i=0;i<similarPics.size();++i) {
-
+        LinearLayout linear = super.findViewById(R.id.photoLinear);
+        LinearLayout.LayoutParams param = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        for (int i = 0; i < similarPics.size(); ++i) {
+            TextView text = new TextView(this);
+            File f = new File(similarPics.get(i).get(0));
+            String time = new SimpleDateFormat("yyyy-MM-dd").format(new Date(f.lastModified()));
+            text.setText(time);
+            linear.addView(text);
+            MyGridView gridView=new MyGridView(this);
+            for(int j=0;j<similarPics.get(i).size();++j) {
+                ImageButton image=new ImageButton(this);
+                image.setImageBitmap(getPicThumb(similarPics.get(i).get(j)));
+                gridView.addView(image);
+            }
+            linear.addView(gridView);
         }
     }
 
-    public int[] getPicThumb(String picPath) {
+    public Bitmap getPicThumb(String picPath) {
+        Bitmap bitmap = null;
+        File photo = new File(picPath);
+        Uri photoUri = Uri.fromFile(photo);
+        try {
+            bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), photoUri);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return bitmap;
+    }
+
+    public int[] getPicCode(String picPath) {
         Bitmap bitmap = null;
         Bitmap scaled = null;
         File photo = new File(picPath);
