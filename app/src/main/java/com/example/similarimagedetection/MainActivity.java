@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -12,6 +13,8 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -29,6 +32,10 @@ public class MainActivity extends AppCompatActivity {
 
     public List<String> picPaths = new ArrayList<>();
     public List<List<String>> similarPics= new LinkedList<>();
+    private GridView gridView;
+    private GridAdapter gridAdapter;
+    private boolean isShowDelete;
+    private List<Similar> datas=new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +48,8 @@ public class MainActivity extends AppCompatActivity {
         folders.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getAbsolutePath());
         folders.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
         folders.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getAbsolutePath());
+        picPaths.clear();
+        similarPics.clear();
         for (int i = 0; i < folders.size(); ++i) {
             File file = new File(folders.get(i));
             File[] files = getFiles(file);
@@ -62,35 +71,48 @@ public class MainActivity extends AppCompatActivity {
 
         for (int i = 0; i < picPaths.size(); ++i) {
             int[] source = getPicCode(picPaths.get(i));
+            Log.d("TAG","Source code: "+source.hashCode());
             List<String> similarList = new ArrayList<>();
             similarList.add(picPaths.get(i));
-            for (int j = i + 1; j < picPaths.size(); ++j) {
+            int n=picPaths.size();
+            for (int j = i + 1; j < n; ++j) {
                 int[] cmp = getPicCode(picPaths.get(j));
+                Log.d("TAG","Dest code: "+cmp.hashCode());
                 if (comparePicture(source, cmp)) {
                     similarList.add(picPaths.get(j));
                     picPaths.remove(j);
+                    n=picPaths.size();
                 }
             }
             if (similarList.size() > 1)
                 similarPics.add(similarList);
         }
-        LinearLayout linear = super.findViewById(R.id.photoLinear);
-        LinearLayout.LayoutParams param = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        for (int i = 0; i < similarPics.size(); ++i) {
-            TextView text = new TextView(this);
-            File f = new File(similarPics.get(i).get(0));
-            String time = new SimpleDateFormat("yyyy-MM-dd").format(new Date(f.lastModified()));
-            text.setText(time);
-            linear.addView(text);
-            MyGridView gridView=new MyGridView(this);
-            for(int j=0;j<similarPics.get(i).size();++j) {
-                ImageView image=new ImageView(this);
-                image.setImageBitmap(getPicThumb(similarPics.get(i).get(j)));
-                gridView.addView(image);
+
+        datas.clear();
+        if(similarPics.size()>1) {
+            for(int i=0;i<similarPics.size();++i) {
+                for(int j=0;j<similarPics.get(i).size();++j) {
+                    Similar pic=new Similar(getPicThumb(similarPics.get(i).get(j)));
+                    datas.add(pic);
+                }
             }
-            linear.addView(gridView);
         }
+
+        gridView=(GridView)findViewById(R.id.photoView);
+        gridAdapter=new GridAdapter(this,datas);
+        gridView.setAdapter(gridAdapter);
+        gridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+                if (isShowDelete) {
+                    isShowDelete=false;
+                } else {
+                    isShowDelete=true;
+                }
+                gridAdapter.setIsShowDelete(isShowDelete);
+                return false;
+            }
+        });
     }
 
     public File[] getFiles(File directory){
@@ -115,34 +137,63 @@ public class MainActivity extends AppCompatActivity {
         else return null;
     }
 
-    public Bitmap getPicThumb(String picPath) {
+    public static Bitmap getPicThumb(String imagePath) {
+        int width=100;
+        int height=100;
         Bitmap bitmap = null;
-        File photo = new File(picPath);
-        Uri photoUri = Uri.fromFile(photo);
-        try {
-            bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), photoUri);
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        bitmap = BitmapFactory.decodeFile(imagePath, options);
+        options.inJustDecodeBounds = false;
+        int h = options.outHeight;
+        int w = options.outWidth;
+        int beWidth = w / width;
+        int beHeight = h / height;
+        int be = 1;
+        if (beWidth < beHeight) {
+            be = beWidth;
+        } else {
+            be = beHeight;
         }
+        if (be <= 0) {
+            be = 1;
+        }
+        options.inSampleSize = be;
+        bitmap = BitmapFactory.decodeFile(imagePath, options);
+        bitmap = ThumbnailUtils.extractThumbnail(bitmap, width, height, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
         return bitmap;
     }
 
     public int[] getPicCode(String picPath) {
         Bitmap bitmap = null;
         Bitmap scaled = null;
-        File photo = new File(picPath);
-        Uri photoUri = Uri.fromFile(photo);
-        try {
-            bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), photoUri);
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        int width=8;
+        int height=8;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        bitmap = BitmapFactory.decodeFile(picPath, options);
+        options.inJustDecodeBounds = false;
+        int h = options.outHeight;
+        int w = options.outWidth;
+        int beWidth = w / width;
+        int beHeight = h / height;
+        int be = 1;
+        if (beWidth < beHeight) {
+            be = beWidth;
+        } else {
+            be = beHeight;
         }
+        if (be <= 0) {
+            be = 1;
+        }
+        options.inSampleSize = be;
+        bitmap = BitmapFactory.decodeFile(picPath, options);
+        bitmap = ThumbnailUtils.extractThumbnail(bitmap, width, height, ThumbnailUtils.OPTIONS_RECYCLE_INPUT);
         float scale_width = 8.0f / bitmap.getWidth();
         float scale_height = 8.0f / bitmap.getHeight();
         Matrix matrix = new Matrix();
         matrix.setScale(scale_width, scale_height);
         scaled = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, false);
-        int width = 8, height = 8;
         double[][] pixels = new double[height][width];
         for (int i = 0; i < width; ++i) {
             for (int j = 0; j < height; ++j) {
@@ -178,6 +229,6 @@ public class MainActivity extends AppCompatActivity {
                ++different;
            }
         }
-        return different < 5;
+        return different < 11;
     }
 }
