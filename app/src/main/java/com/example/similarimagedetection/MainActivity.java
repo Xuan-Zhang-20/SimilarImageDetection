@@ -13,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -37,21 +38,22 @@ public class MainActivity extends AppCompatActivity {
 
     public void getPicList(View v) {
         List<String> folders = new ArrayList<>();
-        folders.add(Environment.DIRECTORY_DCIM);
-        folders.add(Environment.DIRECTORY_DOWNLOADS);
-        folders.add(Environment.DIRECTORY_PICTURES);
+        folders.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getAbsolutePath());
+        folders.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
+        folders.add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getAbsolutePath());
         for (int i = 0; i < folders.size(); ++i) {
             File file = new File(folders.get(i));
-            File[] files = file.listFiles();
+            File[] files = getFiles(file);
             if (files == null) {
                 Log.e("error", "空目录");
             } else {
+
                 for (int j = 0; j < files.length; ++j) {
-                    if (files[i].getAbsolutePath().endsWith(".jpg") ||
-                            files[i].getAbsolutePath().endsWith(".png") ||
-                            files[i].getAbsolutePath().endsWith(".bmp") ||
-                            files[i].getAbsolutePath().endsWith(".jpeg"))
-                        picPaths.add(files[i].getAbsolutePath());
+                    if (files[j].getAbsolutePath().endsWith(".jpg") ||
+                            files[j].getAbsolutePath().endsWith(".png") ||
+                            files[j].getAbsolutePath().endsWith(".bmp") ||
+                            files[j].getAbsolutePath().endsWith(".jpeg"))
+                        picPaths.add(files[j].getAbsolutePath());
                 }
             }
         }
@@ -83,12 +85,34 @@ public class MainActivity extends AppCompatActivity {
             linear.addView(text);
             MyGridView gridView=new MyGridView(this);
             for(int j=0;j<similarPics.get(i).size();++j) {
-                ImageButton image=new ImageButton(this);
+                ImageView image=new ImageView(this);
                 image.setImageBitmap(getPicThumb(similarPics.get(i).get(j)));
                 gridView.addView(image);
             }
             linear.addView(gridView);
         }
+    }
+
+    public File[] getFiles(File directory){
+        List<File> files=new ArrayList<>();
+        File[] temp=directory.listFiles();
+        if(temp != null) {
+            for(int i=0;i<temp.length;++i) {
+                if(temp[i].isFile()) {
+                    files.add(temp[i]);
+                }
+                else  {
+                    File[] child=getFiles(temp[i]);
+                    if(child != null) {
+                        for(int j=0;j<child.length;++j) {
+                            files.add(child[j]);
+                        }
+                    }
+                }
+            }
+            return files.toArray(new File[files.size()]);
+        }
+        else return null;
     }
 
     public Bitmap getPicThumb(String picPath) {
