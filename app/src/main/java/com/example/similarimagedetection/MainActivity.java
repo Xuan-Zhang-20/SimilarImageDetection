@@ -84,19 +84,20 @@ public class MainActivity extends AppCompatActivity {
                     n=picPaths.size();
                 }
             }
-            if (similarList.size() > 1)
+            if (similarList.size() > 0)
                 similarPics.add(similarList);
         }
 
         datas.clear();
-        if(similarPics.size()>1) {
+        if(similarPics.size()>0) {
             for(int i=0;i<similarPics.size();++i) {
                 for(int j=0;j<similarPics.get(i).size();++j) {
-                    Similar pic=new Similar(getPicThumb(similarPics.get(i).get(j)));
+                    Similar pic=new Similar(getPicThumb(similarPics.get(i).get(j)),similarPics.get(i).get(j));
                     datas.add(pic);
                 }
             }
         }
+        Log.d("TAG","We have "+datas.size()+" data");
 
         gridView=(GridView)findViewById(R.id.photoView);
         gridAdapter=new GridAdapter(this,datas);
@@ -138,8 +139,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public static Bitmap getPicThumb(String imagePath) {
-        int width=100;
-        int height=100;
+        int width=150;
+        int height=150;
         Bitmap bitmap = null;
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
